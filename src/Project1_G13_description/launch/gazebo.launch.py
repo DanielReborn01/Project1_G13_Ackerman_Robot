@@ -25,13 +25,13 @@ def generate_launch_description():
         executable='robot_state_publisher',
         name='robot_state_publisher',
         output='screen',
-        parameters=[robot_description],
+        parameters=[robot_description, {'use_sim_time': True}],
     )
 
    
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(join(pkg_ros_gz_sim, "launch", "gz_sim.launch.py")),
-        launch_arguments={"gz_args": "-r -v 4 empty.sdf"}.items()
+        launch_arguments={"gz_args": "-r -v 2 empty.sdf"}.items()
     )
 
     spawn_robot = TimerAction(
@@ -59,9 +59,36 @@ def generate_launch_description():
         output='screen'
     )
 
+    load_controllers = TimerAction(
+        period=8.0,
+        actions=[
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                arguments=[
+                    'joint_state_broadcaster',
+                    '--controller-manager', '/controller_manager',
+                    '--controller-manager-timeout', '30'
+                ],
+                output='screen'
+            ),
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                arguments=[
+                    'ackermann_steering_controller',
+                    '--controller-manager', '/controller_manager',
+                    '--controller-manager-timeout', '30', '--remap ~/tf_odometry:=/tf'
+                ],
+                output='screen'
+            )
+        ]
+    )
+
     return LaunchDescription([
         gazebo,
         spawn_robot,
         ros_gz_bridge,
         robot_state_publisher,
+        load_controllers,
     ])
